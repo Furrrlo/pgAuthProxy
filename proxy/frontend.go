@@ -108,6 +108,13 @@ func (f *ProxyFront) handleStartup() (map[string]string, error) {
 			return nil, err
 		}
 		return f.handleStartup()
+	case *pgproto3.GSSEncRequest:
+		_, err = f.conn.Write([]byte("N"))
+		if err != nil {
+			f.logger.Get().Error("Failed to send deny GSS")
+			return nil, err
+		}
+		return f.handleStartup()
 	default:
 		f.logger.Get().Error("Failed to decode startup message")
 		return nil, net.UnknownNetworkError("Failed to decode startup message")
