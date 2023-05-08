@@ -78,6 +78,7 @@ func (b *ProxyBack) initiateBackendConnection(credential string) error {
 		conn.Close()
 		return err
 	}
+	sc := &scramClient{}
 	for {
 		msg, err := b.proto.Receive()
 		if err != nil {
@@ -101,6 +102,35 @@ func (b *ProxyBack) initiateBackendConnection(credential string) error {
 				conn.Close()
 				return err
 			}
+			continue
+		case *pgproto3.AuthenticationSASL:
+			sc, err = newScramClient(msg.AuthMechanisms, credential)
+			if err != nil {
+				conn.Close()
+				return err
+			}
+			// Send client-first-message in a SASLInitialResponse
+			err = b.proto.Send(&pgproto3.SASLInitialResponse{AuthMechanism: "SCRAM-SHA-256", Data: sc.clientFirstMessage()})
+			if err != nil {
+				conn.Close()
+				return err
+			}
+			continue
+		case *pgproto3.AuthenticationSASLContinue:
+			// Receive server-first-message payload in a AuthenticationSASLContinue.
+			err = sc.recvServerFirstMessage(msg.Data)
+			if err != nil {
+				conn.Close()
+				return err
+			}
+			// Send client-final-message in a SASLResponse
+			err = b.proto.Send(&pgproto3.SASLResponse{Data: []byte(sc.clientFinalMessage())})
+			if err != nil {
+				conn.Close()
+				return err
+			}
+			continue
+		case *pgproto3.AuthenticationSASLFinal:
 			continue
 		case *pgproto3.AuthenticationOk:
 			return nil
