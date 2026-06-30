@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
+	"path/filepath"
+	"strings"
+
 	"github.com/KnifeMaster007/pgAuthProxy/utils"
 	gocmd "github.com/go-cmd/cmd"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"io"
-	"strings"
 )
 
 func CreateMd5Credential(user string, password string) string {
@@ -43,13 +46,26 @@ func Exec(props map[string]string, password string, salt [4]byte) (map[string]st
 	for k, v := range props {
 		parameters[k] = v
 	}
+
+	commandDir := "."
+	if configPath := viper.ConfigFileUsed(); configPath != "" {
+		commandDir = filepath.Dir(configPath)
+	}
+
 	args := viper.GetStringSlice("authenticator.cmd")
-	command := gocmd.NewCmd(args[0], args[1:]...)
+
+	command := gocmd.NewCmdOptions(
+		gocmd.Options{Buffered: true},
+		args[0],
+		args[1:]...,
+	)
+	command.Dir = commandDir
 	statusChan := command.StartWithStdin(encodeProps(parameters))
 
 	select {
 	case status := <-statusChan:
 		log.WithFields(log.Fields{
+			"cmdDir":      command.Dir,
 			"cmdExitCode": status.Exit,
 			"cmd":         args,
 			"cmdPropsIn":  props,
