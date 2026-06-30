@@ -1,0 +1,42 @@
+name: Go
+on: [ push, workflow_dispatch ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.1'
+      - name: Install dependencies
+        run: go get .
+      - name: Build Linux
+        run: go build -o pgAuthProxy-$GOOS-$GOARCH -v .
+        env:
+          GOOS: linux
+          GOARCH: amd64
+      - name: Build MacOS
+        run: go build -o pgAuthProxy-$GOOS-$GOARCH -v .
+        env:
+          GOOS: darwin
+          GOARCH: arm64
+      - name: Build Windows
+        run: go build -o pgAuthProxy-$GOOS-$GOARCH -v .
+        env:
+          GOOS: windows
+          GOARCH: amd64
+      - name: Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: nightly
+          prerelease: true
+          target_commitish: ${{ github.sha }}
+          files: |
+            pgAuthProxy-linux-amd64
+            pgAuthProxy-darwin-arm64
+            pgAuthProxy-windows-amd64.exe
+
