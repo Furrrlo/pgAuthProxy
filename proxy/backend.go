@@ -85,6 +85,15 @@ func (b *ProxyBack) initiateBackendConnection(credential string) error {
 			return err
 		}
 		switch msg := msg.(type) {
+		case *pgproto3.AuthenticationCleartextPassword:
+			err = b.proto.Send(&pgproto3.PasswordMessage{
+				Password: credential,
+			})
+			if err != nil {
+				conn.Close()
+				return err
+			}
+			continue
 		case *pgproto3.AuthenticationMD5Password:
 			salt := msg.Salt
 			err = b.proto.Send(&pgproto3.PasswordMessage{Password: auth.SaltedMd5Credential(credential, salt)})
