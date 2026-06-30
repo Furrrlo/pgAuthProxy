@@ -84,9 +84,9 @@ func (b *ProxyBack) initiateBackendConnection(credential string) error {
 			conn.Close()
 			return err
 		}
-		switch msg.(type) {
+		switch msg := msg.(type) {
 		case *pgproto3.AuthenticationMD5Password:
-			salt := msg.(*pgproto3.AuthenticationMD5Password).Salt
+			salt := msg.Salt
 			err = b.proto.Send(&pgproto3.PasswordMessage{Password: auth.SaltedMd5Credential(credential, salt)})
 			if err != nil {
 				conn.Close()
@@ -96,10 +96,10 @@ func (b *ProxyBack) initiateBackendConnection(credential string) error {
 		case *pgproto3.AuthenticationOk:
 			return nil
 		case *pgproto3.ErrorResponse:
-			return BackendAuthenticationError
+			return fmt.Errorf("%w: %#v", BackendAuthenticationError, msg)
 		default:
 			conn.Close()
-			return BackendInvalidMessage
+			return fmt.Errorf("%w: unexpected message type %#v", BackendInvalidMessage, msg)
 		}
 	}
 }
