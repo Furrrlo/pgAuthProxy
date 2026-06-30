@@ -1,12 +1,13 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/KnifeMaster007/pgAuthProxy/proxy"
 	"github.com/KnifeMaster007/pgAuthProxy/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
 )
 
 const (
@@ -16,15 +17,21 @@ const (
 var (
 	cfgFile string
 	listen  string
+	verbose bool
 
 	rootCmd = &cobra.Command{
 		Use:   "pgAuthProxy",
 		Short: "PostgreSQL authentication proxy",
 		Run: func(cmd *cobra.Command, args []string) {
 			initConfig()
-			a := viper.GetString(utils.ConfigCleartextPassword)
-			if a != "" {
+
+			if verbose {
+				log.SetLevel(log.TraceLevel)
+				log.Debug("Debug logging enabled")
+			} else {
+				log.SetLevel(log.InfoLevel)
 			}
+
 			proxy.Start()
 		},
 	}
@@ -43,6 +50,16 @@ func initCobra() {
 		rootCmd.PersistentFlags().Lookup(utils.ConfigCleartextPasswordFlag))
 	_ = viper.BindEnv(utils.ConfigCleartextPassword, utils.ConfigCleartextPasswordEnv)
 	viper.SetDefault(utils.ConfigCleartextPasswordFlag, false)
+
+	rootCmd.PersistentFlags().BoolVarP(
+		&verbose,
+		"verbose",
+		"v",
+		false,
+		"enable debug logging",
+	)
+	_ = viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
+	viper.SetDefault("verbose", false)
 }
 
 func initConfig() {

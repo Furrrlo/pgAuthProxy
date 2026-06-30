@@ -12,7 +12,6 @@ import (
 func Start() {
 	//log.SetReportCaller(true)
 	log.Info("Starting auth pgAuthProxy...")
-	log.SetLevel(log.DebugLevel)
 
 	var bindAddr = viper.GetString(utils.ConfigListenFlag)
 	server, _ := net.Listen("tcp", bindAddr)
