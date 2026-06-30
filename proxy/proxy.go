@@ -1,11 +1,12 @@
 package proxy
 
 import (
+	"net"
+
 	"github.com/KnifeMaster007/pgAuthProxy/auth"
 	"github.com/KnifeMaster007/pgAuthProxy/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"net"
 )
 
 // Start PostgreSQL authentication proxy server
@@ -14,7 +15,11 @@ func Start() {
 	log.Info("Starting auth pgAuthProxy...")
 
 	var bindAddr = viper.GetString(utils.ConfigListenFlag)
-	server, _ := net.Listen("tcp", bindAddr)
+	server, err := net.Listen("tcp", bindAddr)
+	if err != nil {
+		panic(err)
+	}
+
 	log.WithField("address", bindAddr).Info("Started listening")
 	defer server.Close()
 
