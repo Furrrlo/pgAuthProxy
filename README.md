@@ -6,10 +6,7 @@ PgAuthProxy is a PostgreSQL gateway with customizable authentication. It provide
 single entrypoint for various database servers with credentials mapping capability.
 
 ## Installation
-
-```
-go install github.com/KnifeMaster007/pgAuthProxy
-```
+Download the required executable from the Releases section.
 
 ## Core concepts
 
@@ -39,6 +36,7 @@ Flags:
       --config string   configuration file path
   -h, --help            help for pgAuthProxy
       --listen string   bind address (default ":5432")
+  -v, --verbose         enable debug logging
 ```
 
 ## Configuration file
@@ -84,7 +82,3 @@ client_encoding=UTF8
 _META_TARGET_HOST=pgbouncer.prod:5432
 _META_TARGET_CRED=md53670464b1b43f39455d2637b187f9245
 ```
-
-## Limitations
- * SSL is not supported yet
- * Cleartext password authentication with backend is not supported
