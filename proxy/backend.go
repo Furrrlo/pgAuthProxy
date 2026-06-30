@@ -1,16 +1,19 @@
 package proxy
 
 import (
+	"crypto/tls"
 	"encoding/binary"
 	"errors"
-	"github.com/KnifeMaster007/pgAuthProxy/auth"
-	"github.com/KnifeMaster007/pgAuthProxy/utils"
-	"github.com/jackc/pgproto3/v2"
-	log "github.com/sirupsen/logrus"
+	"fmt"
 	"io"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/KnifeMaster007/pgAuthProxy/auth"
+	"github.com/KnifeMaster007/pgAuthProxy/utils"
+	"github.com/jackc/pgproto3/v2"
+	log "github.com/sirupsen/logrus"
 )
 
 type ProxyBack struct {
@@ -58,6 +61,12 @@ func (b *ProxyBack) initiateBackendConnection(credential string) error {
 	if err != nil {
 		return err
 	}
+
+	conn, err = negotiateTLS(conn, b.TargetHost)
+	if err != nil {
+		return err
+	}
+
 	b.backendConn = conn
 	b.protoChunkReader = pgproto3.NewChunkReader(conn)
 	b.proto = pgproto3.NewFrontend(b.protoChunkReader, conn)
@@ -93,6 +102,42 @@ func (b *ProxyBack) initiateBackendConnection(credential string) error {
 			return BackendInvalidMessage
 		}
 	}
+}
+
+func negotiateTLS(conn net.Conn, serverName string) (net.Conn, error) {
+	// Send SSLRequest
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint32(buf[0:4], 8)
+	binary.BigEndian.PutUint32(buf[4:8], 80877103)
+
+	if _, err := conn.Write(buf); err != nil {
+		return nil, err
+	}
+
+	// Read response
+	resp := make([]byte, 1)
+	if _, err := conn.Read(resp); err != nil {
+		return nil, err
+	}
+
+	// Server downgraded to no TLS
+	if resp[0] != 'S' {
+		log.Debug("server said no TLS")
+		return conn, nil
+	}
+
+	// Upgrade to TLS
+	tlsConn := tls.Client(conn, &tls.Config{
+		ServerName:         serverName,
+		InsecureSkipVerify: true,
+	})
+
+	if err := tlsConn.Handshake(); err != nil {
+		return nil, err
+	}
+
+	log.Debug("enabled TLS")
+	return tlsConn, nil
 }
 
 func pipeBackendPgMessages(source pgproto3.ChunkReader, dest io.Writer) error {
