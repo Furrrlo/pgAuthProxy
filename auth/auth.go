@@ -76,7 +76,7 @@ func Exec(props map[string]string, password string, salt [4]byte) (map[string]st
 			return nil, status.Error
 		}
 		if status.Exit != 0 {
-			return nil, io.EOF
+			return nil, errors.New(strings.Join(status.Stderr, "\n"))
 		}
 		ret := make(map[string]string)
 		for _, s := range status.Stdout {

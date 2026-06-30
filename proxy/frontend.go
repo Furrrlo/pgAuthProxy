@@ -3,21 +3,18 @@ package proxy
 import (
 	"errors"
 	"fmt"
-	"github.com/KnifeMaster007/pgAuthProxy/utils"
-	"github.com/jackc/pgproto3/v2"
-	"github.com/spf13/viper"
 	"io"
 	"math/rand"
 	"net"
+
+	"github.com/KnifeMaster007/pgAuthProxy/utils"
+	"github.com/jackc/pgproto3/v2"
+	"github.com/spf13/viper"
 )
 
 type AuthMapper = func(props map[string]string, password string, salt [4]byte) (map[string]string, error)
 
 var authError = errors.New("client_auth_failed")
-
-var pgErrorAuthFailed = &pgproto3.ErrorResponse{
-	Severity: "ERROR", Code: "28P01", Message: "password authentication failed",
-}
 
 type ProxyFront struct {
 	salt             [4]byte
@@ -52,8 +49,10 @@ func NewProxyFront(conn net.Conn, authMapper AuthMapper) *ProxyFront {
 func (f *ProxyFront) handlePasswordAuth(msg *pgproto3.PasswordMessage) error {
 	props, err := f.authMapper(f.originProps, msg.Password, f.salt)
 	if err != nil {
-		_ = f.proto.Send(pgErrorAuthFailed)
-		return authError
+		_ = f.proto.Send(&pgproto3.ErrorResponse{
+			Severity: "ERROR", Code: "28P01", Message: fmt.Sprintf("%w", err),
+		})
+		return fmt.Errorf("%w: %w", authError, err)
 	}
 	f.mappedProps = props
 	f.backend, err = NewProxyBackend(f.mappedProps, f.originProps)
